@@ -362,6 +362,7 @@ def get_verlander_and_avila_data():
     # n_pitches = n_pitches.reset_index(drop=True)
     return pitches
 
+
 def get_type_percentages(pitches):
     # pitches = pd.read_pickle("./verlander_avila_data.pickle")
     # pitches = pitches[["pitch_type", "year", "month", "day",
@@ -373,8 +374,10 @@ def get_type_percentages(pitches):
     # pitches = pitches.sort_values(by=['year', 'month', 'day', 'inning', 'at_bat_number', 'pitch_number'],
     #                               ascending=[True, True, True, True, True, True])
     # pitches = pitches.head(20)
-    zeros = np.zeros(shape=(len(pitches), len(PITCHES_LIST)))
-    pitch_percentages = pd.DataFrame(zeros, columns=PITCHES_PERCENTAGES)
+    prev_result_list = ['prev_pitch_strike', 'prev_pitch_ball', 'prev_pitch_in_play']
+    zeros = np.zeros(shape=(len(pitches), len(PITCHES_LIST) + len(prev_result_list)))
+    column_names = PITCHES_PERCENTAGES + prev_result_list
+    pitch_percentages = pd.DataFrame(zeros, columns=column_names)
     pitch_type_counts = {}
     for pitch in PITCHES_LIST:
         pitch_type_counts[pitch] = 0
@@ -382,15 +385,19 @@ def get_type_percentages(pitches):
     for i in range(1, len(pitches)):
         num_pitches += 1
         previous_pitch = pitches.iloc[i-1]['pitch_type']
+        previous_result = pitches.iloc[i-1]['type']
         pitch_type_counts[previous_pitch] += 1
-        # for j in range(len(PITCHES_LIST)):
-        #     pitch = PITCHES_LIST[j]
-        #     percentage = pitch_type_counts[pitch] / num_pitches
-        #     pitch_percentages.iloc[i][PITCHES_PERCENTAGES[j]] = percentage
+        prev_results_dict = {}
+        assert(previous_result in {'S', 'B', 'X'})
+        prev_results_dict['prev_pitch_strike'] = 1 if previous_result == 'S' else 0
+        prev_results_dict['prev_pitch_ball'] = 1 if previous_result == 'B' else 0
+        prev_results_dict['prev_pitch_in_play'] = 1 if previous_result == 'X' else 0
         for pitch in PITCHES_LIST:
             percentage = pitch_type_counts[pitch] / num_pitches
             col_to_update = PITCHES_PERCENTAGES_DICT[pitch]
             pitch_percentages.iloc[i][col_to_update] = percentage
+        for key in prev_results_dict:
+            pitch_percentages.iloc[i][key] = prev_results_dict[key]
     return pitch_percentages
 
 
@@ -500,7 +507,7 @@ def get_previous_pitch_tendencies(pitches):
     # pitches = pitches.head(20)
     grouped_df = pitches.groupby(by=['year', 'month', 'day'])
     l_grouped = list(grouped_df)
-    last_n = [5, 10, 20]
+    last_n = [1, 5, 10, 20]
     games = []
     for group in l_grouped:
         data = group[1]
@@ -573,13 +580,15 @@ if __name__ == '__main__':
     pitch_data = get_verlander_and_avila_data()
     # print(pitch_data[['pitch_type', 'type']])
     # print(pitch_data)
-    # result = get_previous_pitch_tendencies(pitch_data)
+    result = get_previous_pitch_tendencies(pitch_data)
+    print(len(result))
     # result = get_previous_strike_tendencies(pitch_data)
     # print(len(result))
     # print(result.iloc[len(result) - 1])
     type_percentages = get_type_percentages(pitch_data)
-    strike_percentages = get_strike_percentages(pitch_data)
-    print(len(type_percentages), len(strike_percentages))
+    print(len(type_percentages))
+    # strike_percentages = get_strike_percentages(pitch_data)
+    # print(len(type_percentages), len(strike_percentages))
     # data = merge_pitching_data(pitch_data, type_percentages, strike_percentages)
     # print(data.iloc[len(data) - 1])
 
